@@ -15,7 +15,7 @@ from pathlib import Path
 
 from flask import jsonify, request
 from werkzeug.exceptions import HTTPException
-from werkzeug.serving import make_server
+from werkzeug.serving import WSGIRequestHandler, make_server
 
 PASTA_LOGS = Path(__file__).resolve().parent / "logs"
 
@@ -74,6 +74,14 @@ def aplicar_seguranca(app, nome):
     return logger
 
 
+class _HandlerSilencioso(WSGIRequestHandler):
+    """O log do werkzeug polui a saida dos testes; o log de seguranca de
+    verdade ja e gravado em logs/ pelo after_request."""
+
+    def log_request(self, *args, **kwargs):
+        pass
+
+
 class ServidorDeTeste:
     """Sobe um app Flask em 127.0.0.1 numa thread (porta livre por padrao).
 
@@ -82,7 +90,8 @@ class ServidorDeTeste:
     """
 
     def __init__(self, app, porta=0):
-        self.srv = make_server("127.0.0.1", porta, app, threaded=True)
+        self.srv = make_server("127.0.0.1", porta, app, threaded=True,
+                               request_handler=_HandlerSilencioso)
         self.thread = threading.Thread(target=self.srv.serve_forever,
                                        daemon=True)
 
